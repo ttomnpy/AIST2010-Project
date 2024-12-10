@@ -54,3 +54,4 @@ Other files are generated under `static/generated_files/`
 - [IMPROVED MUSICAL ONSET DETECTION WITH CONVOLUTIONAL NEURAL NETWORKS](http://www.ofai.at/~jan.schlueter/pubs/2014_icassp.pdf)
 - [Dance Dance Convolution](https://arxiv.org/pdf/1703.06891.pdf)
 - [Musical Data Processing with CNN](https://qiita.com/woodyOutOfABase/items/01cc43fafe767d3edf62)
+- [Demucs Music Source Separation](https://github.com/facebookresearch/demucs/tree/main)

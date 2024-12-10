@@ -7,6 +7,10 @@ from model import *
 import os
 import librosa
 
+"""
+This code file is downloaded from a open-source project.
+We modified this file to fit our goal of chart generation.
+"""
 
 def detection(don_inference, ka_inference, song):
     """detects notes disnotesiresultg don and ka"""
@@ -14,7 +18,7 @@ def detection(don_inference, ka_inference, song):
     don_inference = smooth(don_inference, 5)
     ka_inference = smooth(ka_inference, 5)
 
-    don_timestamp = (peak_pick(x = don_inference, pre_max=1, post_max=2, pre_avg=4, post_avg=5, delta= 0.05,wait= 3)+7)  # 実際は7フレーム目のところの音
+    don_timestamp = (peak_pick(x = don_inference, pre_max=1, post_max=2, pre_avg=4, post_avg=5, delta= 0.05,wait= 3)+7) 
     ka_timestamp = (peak_pick(x = ka_inference, pre_max=1, post_max=2, pre_avg=4, post_avg=5, delta= 0.05,wait= 3)+7)
     song.don_timestamp = don_timestamp[np.where(don_inference[don_timestamp] > ka_inference[don_timestamp])]
     song.timestamp = song.don_timestamp*512/song.samplerate

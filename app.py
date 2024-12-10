@@ -75,7 +75,9 @@ def process():
     
     # Write the .tja file
     filtered_chart = write_tja_file(output_file, taiko_chart, bpm, ending, file_name, song_name, 0, notes)
+    #synthesize_chart(filtered_chart, synethized_file, os.path.join(GENERATED_FILES_FOLDER, f"{song_name}_demucs_output", "htdemucs", f"{song_name}", f"no_vocals.wav"))
     synthesize_chart(filtered_chart, synethized_file, file_path)
+
     # Return the .tja file for download
 
     #return send_file(synethized_file, as_attachment=True)

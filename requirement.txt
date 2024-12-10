@@ -1,0 +1,8 @@
+soundfile
+librosa
+matplotlib
+numpy
+tqdm
+demucs
+pytorch
+flask

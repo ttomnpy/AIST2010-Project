@@ -234,7 +234,7 @@ def multi_fft_and_melscale(songs, nhop=512, nffts=[1024, 2048, 4096], mel_nband=
         songs[i].feats = fft_and_melscale(songs[i], nhop, nffts, mel_nband, mel_freqlo, mel_freqhi)
 
 
-def milden(data):
+'''def milden(data):
     """put smaller value(0.25) to plus minus 1 frame."""
     
     for i in range(data.shape[0]):
@@ -251,7 +251,7 @@ def milden(data):
             if i < data.shape[0] - 1:
                 data[i+1] = 0.1
     
-    return data
+    return data'''
 
 
 def smooth(x, window_len=11, window='hanning'):
@@ -279,7 +279,7 @@ def smooth(x, window_len=11, window='hanning'):
     
     return y
 
-
+"""
 def music_for_listening(serv, synthesize=True, difficulty=0):
 
     song = Audio(glob(serv+"/*.ogg")[0])
@@ -386,4 +386,4 @@ if __name__ == "__main__":
         music_for_train_reduced(serv, verbose=True, difficulty=0, diff=True)
         
 
-
+"""

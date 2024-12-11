@@ -1,14 +1,13 @@
 import numpy as np
 from librosa.util import peak_pick
 from librosa.onset import onset_detect
-
 import librosa
 import os
 import soundfile as sf
-
 import demucs.separate
 
-
+def round_off(n):
+    return int(n + 0.5) if n > 0 else int(n - 0.5)
 
 def isolate_background(file_path):
 
@@ -19,11 +18,9 @@ def isolate_background(file_path):
     output_dir = os.path.join(input_dir, f"{song_name}_demucs_output")
     os.makedirs(output_dir, exist_ok=True)
 
-
     demucs.separate.main(["--out", output_dir, "--two-stems=vocals", file_path])
 
     no_vovals_path = os.path.join(output_dir, "htdemucs", f"{song_name}", f"no_vocals.wav")
-
 
     if not os.path.exists(no_vovals_path):
         raise FileNotFoundError("File not found. Check the output directory.")
@@ -36,7 +33,6 @@ def isolate_background(file_path):
 def taiko_chart_generator(file_path, max_hits_per_sec):
 
     # Load the audio
-    #y, sr = librosa.load(file_path, mono=True)
     y, sr = isolate_background(file_path)
 
     # Detect tempo (BPM) and onset frames
@@ -44,10 +40,6 @@ def taiko_chart_generator(file_path, max_hits_per_sec):
     print("Detected BPM", tempo.item())
     
     bpm = tempo.item()
-
-    '''ipt = input("Please insert new BPM if detection is wrong: ")
-    if ipt != '':
-        bpm = float(ipt)'''
 
     # Onset detection
     onset_frames = librosa.onset.onset_detect(
@@ -61,21 +53,19 @@ def taiko_chart_generator(file_path, max_hits_per_sec):
 
     # Calculate average hits per second
     def calculate_density(onset_times):
-        # Calculate the number of hits per second
         total_hits = len(onset_times)
-        total_duration = onset_times[-1]  # Duration in seconds
+        total_duration = onset_times[-1]
         avg_hits_per_sec = total_hits / total_duration
         return avg_hits_per_sec
 
     avg_density = calculate_density(onset_times)
     print(f"Average Hits per Second: {avg_density}")
 
-
-    # Adjust `wait` parameter if density exceeds max hits per second
-    delta = 0.03  # Initial value for 'wait'
-    while round(avg_density) > max_hits_per_sec:
-        print(f"Now: {avg_density}, Density exceeded {max_hits_per_sec} hits per second. Adjusting `delta`...")
-        delta += 0.005  # Increase `wait` to reduce density
+    # Adjust 'delta' parameter if density exceeds max hits per second
+    delta = 0.02
+    while round_off(avg_density) > max_hits_per_sec:
+        print(f"Now: {avg_density}, Density exceeded {max_hits_per_sec} hits per second. Adjusting 'delta'...")
+        delta += 0.005  # Increase 'delta' to reduce density
         print(f"New delta value: {delta}")
 
         # Regenerate the onset frames with the new 'wait' value
@@ -99,21 +89,17 @@ def taiko_chart_generator(file_path, max_hits_per_sec):
     return taiko_chart, bpm, ending, sr
 
 def classify_don_ka(y, sr, onsets):
-    # Initialize lists to store spectral features
     spectral_centroids = []
 
-    # For each onset, extract spectral centroid (or another spectral feature)
     for onset in onsets:
         onset_samples = librosa.time_to_samples(onset, sr=sr)
         onset_window = y[onset_samples - int(0.1 * sr):onset_samples + int(0.1 * sr)]
 
-        # Compute the spectral content (using STFT and spectral centroid)
         D = librosa.stft(onset_window)
         magnitude, _ = librosa.magphase(D)
         spectral_centroid = librosa.feature.spectral_centroid(S=magnitude).mean()
         spectral_centroids.append(spectral_centroid)
 
-    # Compute the median spectral centroid value to serve as a threshold
     median_spectral_centroid = np.median(spectral_centroids)
 
     # Classify each onset as "don" or "ka" based on its relative frequency content
@@ -128,7 +114,7 @@ def classify_don_ka(y, sr, onsets):
 
     return taiko_chart
 
-def synthesize_chart(taiko_chart, output_file, song_path):
+def synthesize_audio(taiko_chart, output_file, song_path):
     don="./don.wav"
     ka="./ka.wav"
     song, song_sr = librosa.load(song_path, mono=True)
@@ -139,28 +125,24 @@ def synthesize_chart(taiko_chart, output_file, song_path):
     don_len = len(don_sound)
     ka_len = len(ka_sound)
 
-    total_duration = int((taiko_chart[-1]["time"] / 1000) * song_sr) + max(don_len, ka_len)
     synthesized_audio = np.copy(song)
 
     for entry in taiko_chart:
         time = int((entry["time"] / 1000) * song_sr)  
-        if entry["note"] == "1":  # don
+        if entry["note"] == "1":  
             end_idx = min(time + don_len, len(synthesized_audio))  
             synthesized_audio[time:end_idx] += don_sound[:end_idx - time]  
-        elif entry["note"] == "2":  # ka
+        elif entry["note"] == "2":  
             end_idx = min(time + ka_len, len(synthesized_audio))  
             synthesized_audio[time:end_idx] += ka_sound[:end_idx - time] 
-
-    # synthesized_audio = np.clip(synthesized_audio, -1, 1)
 
     sf.write(output_file, synthesized_audio, song_sr)
     print(f"Synthesized audio saved to {output_file}")
 
 
-def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generated Song", level=5, min_note_unit = '16th'):
+"""def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generated Song", level=5, min_note_unit = '16th'):
     with open(output_file, "w") as f:
-        current_time = 0
-        chart_string = ""
+        
         
         
         note_unit_map = {"8th": 1/2, "16th": 1/4, "32th": 1/8, "64th": 1/16}
@@ -175,7 +157,7 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         threshold = min_note_interval / 2
 
         filtered_chart = []
-        """for entry in taiko_chart:
+        '''for entry in taiko_chart:
             aligned_time = round(entry["time"] / smallest_unit_duration) * smallest_unit_duration
             if (basetime == -1):
                 basetime = aligned_time
@@ -183,7 +165,7 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
             #print((entry["time"] ) , time_increment)
             
             if (abs((aligned_time - basetime) % min_note_interval) < threshold) or abs((aligned_time - basetime) % min_note_interval) - min_note_interval  < threshold:
-                filtered_chart.append({"time": aligned_time, "note": entry["note"]})"""
+                filtered_chart.append({"time": aligned_time, "note": entry["note"]})'''
         for entry in taiko_chart:
             aligned_time = round(entry["time"] / min_note_interval) * min_note_interval
             if filtered_chart and abs(aligned_time - filtered_chart[-1]["time"]) < threshold:
@@ -200,7 +182,9 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         f.write("MEASURE:4/4\n")
         f.write("#START\n")
         
-
+        current_time = 0
+        chart_string = ""
+        
         # Generate note sequence with rests ('0') where no notes are present
         for entry in filtered_chart:
             while current_time < entry['time']:
@@ -220,36 +204,102 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         f.write(",\n".join(rows))
         f.write("\n#END\n")
     return filtered_chart
-
-
-
-
 """
-#cwd = os.getcwd()
-path, filename = os.path.split(os.path.realpath(__file__))
-print(path)
-cwd = path
+
+def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generated Song", level=5, min_note_unit = '16th'):
+    with open(output_file, "w") as f:
+        
+        note_unit_map = {"8th": 1/2, "16th": 1/4, "32th": 1/8, "64th": 1/16}
+        min_note_interval = (60 / bpm) * note_unit_map.get(min_note_unit, 1/4) * 1000  # Set the unit to milliseconds
+        print("min note interval", min_note_interval)
+        
+        if not taiko_chart:
+            raise ValueError("The taiko_chart is empty.")
+        
+        threshold = 0.5
+
+        filtered_chart = []
+        
+        def filter_chart(chart):
+            if not chart:
+                return []
+            
+            #starting_time = chart[0]["time"]
+            starting_time = 0
+            snapped_chart = []
+            for entry in chart:
+                timestamp, note = entry["time"], entry["note"]
+                
+                
+                aligned_time = round_off((timestamp-starting_time) / min_note_interval) * min_note_interval
+                deviation = abs((timestamp - starting_time) - aligned_time)
+                print(timestamp, aligned_time+starting_time, deviation)
+                if deviation <= threshold * min_note_interval:
+                    snapped_chart.append({"time": aligned_time + starting_time, "note": note})
+            return snapped_chart
+
+        filtered_chart = filter_chart(taiko_chart)
+
+        first_entry_time = filtered_chart[0]["time"]
+
+        f.write(f"TITLE:{title}\n")
+        f.write(f"BPM:{bpm:.2f}\n")
+        f.write(f"WAVE:{song}\n")
+        f.write(f"OFFSET:{-first_entry_time/1000}\n")
+        f.write("COURSE:Oni\n")
+        f.write(f"LEVEL:{level}\n")
+        f.write("MEASURE:4/4\n")
+        f.write("#START\n")
+        
+        current_time = first_entry_time
+        chart_string = ""
+        
+        # Generate note sequence
+        for entry in filtered_chart:
+            while current_time < entry['time']:
+                chart_string += "0"  # Rest
+                current_time += min_note_interval
+            chart_string += entry['note']  # Add note
+            current_time += min_note_interval
+
+        while current_time < ending:
+            chart_string += "0"  # Fill remaining time with rests
+            current_time += min_note_interval
+
+        note_per_row = int(min_note_unit[:-2])
+
+        # Split chart into rows
+        rows = [chart_string[i:i + note_per_row] for i in range(0, len(chart_string), note_per_row)]
+        f.write(",\n".join(rows))
+        f.write("\n#END\n")
+    return filtered_chart
 
 
-songname = input("Song Name (Without .ogg): ")
-songname = songname + '.ogg'
-songname = "viva.ogg"
 
-songpath = os.path.join(os.path.join(cwd, 'generated_files_librosa'), songname)
-print("Song path: ", songpath)
-
-max_hits_per_sec = float(input("Max hit per second: "))
-min_note_unit = input("Minimum note unit [8th/16th/32th]: ")
-map_title = input("Title of the map: ")
-
-taiko_chart, bpm, ending, sr = taiko_chart_generator(
-    songpath,
-    max_hits_per_sec = max_hits_per_sec
-)
+if __name__ == "__main__":
+    path, filename = os.path.split(os.path.realpath(__file__))
+    print(path)
+    cwd = path
 
 
+    songname = input("Song Name (Without .ogg): ")
+    songname = songname + '.ogg'
+    songname = "viva.ogg"
 
-output_file = cwd + "/generated_files_librosa/"+ songname[:-4] + ".tja"
-write_tja_file(output_file, taiko_chart, bpm, ending, title=map_title, level=1, song = songname, min_note_unit=min_note_unit)
+    songpath = os.path.join(os.path.join(cwd, 'generated_files_librosa'), songname)
+    print("Song path: ", songpath)
 
-print(f"Taiko chart written to {output_file}")"""
+    max_hits_per_sec = float(input("Max hit per second: "))
+    min_note_unit = input("Minimum note unit [8th/16th/32th]: ")
+    map_title = input("Title of the map: ")
+
+    taiko_chart, bpm, ending, sr = taiko_chart_generator(
+        songpath,
+        max_hits_per_sec = max_hits_per_sec
+    )
+
+
+    output_file = cwd + "/generated_files_librosa/"+ songname[:-4] + ".tja"
+    write_tja_file(output_file, taiko_chart, bpm, ending, title=map_title, level=1, song = songname, min_note_unit=min_note_unit)
+
+    print(f"Taiko chart written to {output_file}")

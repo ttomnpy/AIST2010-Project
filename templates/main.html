@@ -10,11 +10,12 @@
         height: 100vh;
         background-color: rgba(238, 238, 238); /* Background color */
         padding: 25px 0 100px 0;
+        overflow-y: auto;
     }
 
     body::before {
         content: '';
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         width: 100%;
@@ -23,6 +24,7 @@
         background-attachment: fixed;
         background-size: cover;
         background-position: center;
+        background-repeat: no-repeat; 
         opacity: 0.5; 
         z-index: -1;
     }
@@ -177,7 +179,6 @@
         <button type="button" onclick="uploadAudio()">Upload and Detect BPM</button>
     </div>
 
-    <div id="waveform"></div>
 
     <!-- Form to fill in song details after BPM detection -->
     <form id="songForm" onsubmit="submitForm(event)" method="post" style="display: none;">
@@ -196,7 +197,7 @@
         <input type="number" value="5" id="difficulty" name="difficulty" required><label> hits/sec</label><br><br>
         
         <!-- Notes -->
-        <label for="notes">Minimum note unit:</label><br>
+        <label for="notes">Minimum Note Unit:</label><br>
         <input type="radio" id="8notes" name="notes" value="8th" required>
         <label for="8notes">8th notes</label><br>
         <input type="radio" id="16notes" name="notes" value="16th" required>
@@ -207,6 +208,13 @@
         <!-- BPM Displayed from Detection -->
         <label for="bpm">Detected BPM:</label><br>
         <input type="text" id="bpm" name="bpm" required><br><br>
+
+        <!-- Selection between CNN method and Librosa -->
+        <label for="method">Generation Method:</label><br>
+        <input type="radio" id="cnn" name="method" value="cnn" required>
+        <label for="cnn">CNN Approach</label><br>
+        <input type="radio" id="librosa" name="method" value="librosa" required>
+        <label for="librosa">Librosa Approach</label><br>
 
         <!-- Submit button -->
         <input type="submit" value="Generate Chart">

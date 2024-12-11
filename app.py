@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, jsonify, send_file, url_for
 import os
 from io import BytesIO
 import librosa
-from taiko_librosa import taiko_chart_generator, write_tja_file, synthesize_chart
+from taiko_librosa import taiko_chart_generator, write_tja_file, synthesize_audio
+from taiko_cnn import *
 
 app = Flask(__name__)
 
@@ -52,7 +53,7 @@ def upload_audio():
     with open(file_path, 'wb') as f:
         f.write(file_bytes.getvalue())
 
-    return jsonify({'bpm': tempo.item(), 'file_name': file_name})
+    return jsonify({'bpm': round_off(tempo.item()), 'file_name': file_name})
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -62,23 +63,25 @@ def process():
     notes = request.form['notes']
     bpm = float(request.form['bpm'])
     file_name = request.form['file_name']
+    approach = request.form['method']
     
-    # Get the file path assuming it's in the generated_files folder
+    
     file_path = os.path.join(GENERATED_FILES_FOLDER, file_name)
 
-    # Generate the Taiko chart
-    taiko_chart, bpm_detected, ending, sr = taiko_chart_generator(file_path, max_hits_per_sec=difficulty)
-    
-    # Define the output file path for the .tja file
-    output_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}.tja")
-    synethized_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}_syn.wav")
-    
-    # Write the .tja file
-    filtered_chart = write_tja_file(output_file, taiko_chart, bpm, ending, file_name, song_name, 0, notes)
-    #synthesize_chart(filtered_chart, synethized_file, os.path.join(GENERATED_FILES_FOLDER, f"{song_name}_demucs_output", "htdemucs", f"{song_name}", f"no_vocals.wav"))
-    synthesize_chart(filtered_chart, synethized_file, file_path)
-
-    # Return the .tja file for download
+    if approach == 'librosa':
+        taiko_chart, bpm_detected, ending, sr = taiko_chart_generator(file_path, max_hits_per_sec=difficulty)
+        output_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}.tja")
+        synethized_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}_syn.wav")
+        
+        filtered_chart = write_tja_file(output_file, taiko_chart, bpm, ending, file_name, song_name, 0, notes)
+        synthesize_audio(filtered_chart, synethized_file, file_path)
+    elif approach == 'cnn':
+        song = process_song(file_path)
+        song = generate_inference(song, difficulty)
+        output_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}.tja")
+        synethized_file = os.path.join(GENERATED_FILES_FOLDER, f"{song_name}_syn.wav")
+        filtered_chart = create_tja(output_file, song, song_name, song.don_timestamp, song.ka_timestamp,file_name, bpm, notes)
+        synthesize_audio(filtered_chart, synethized_file, file_path)
 
     #return send_file(synethized_file, as_attachment=True)
     return jsonify({

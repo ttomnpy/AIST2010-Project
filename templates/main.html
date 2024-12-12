@@ -183,6 +183,9 @@
              
         <label for="endTime">End Time (seconds):</label>
         <input type="number" id="endTime" name="endTime" value="10" min="0"><br>
+
+        <label for="fadeout">Fade Out Time (seconds):</label>
+        <input type="number" id="fadeout" step="0.05" name="fadeout" value="0.25" min="0" max = "5"><br>
             
         <button type="button" id="trim">Trim Audio</button>
         <h3>Trimmed Audio</h3>
@@ -202,7 +205,7 @@
         <input type="text" id="sname" name="sname" required><br><br>
         
         <label for="difficulty">Difficulty (Max Average Hits/sec):</label><br>
-        <input type="number" value="5" id="difficulty" name="difficulty" required><label> hits/sec</label><br><br>
+        <input type="number" value="5" step="0.01" id="difficulty" name="difficulty" required><label> hits/sec</label><br><br>
         
         <label for="notes">Minimum Note Unit:</label><br>
         <input type="radio" id="8notes" name="notes" value="8th" required>
@@ -235,6 +238,7 @@
     const trimButton = document.getElementById('trim');
     const startTimeInput = document.getElementById('startTime');
     const endTimeInput = document.getElementById('endTime');
+    const fadeOutInput = document.getElementById('fadeout')
     const detectButton = document.getElementById('detect');
     
     audioFileInput.setAttribute('multiple', false);
@@ -266,12 +270,14 @@
     trimButton.addEventListener('click', async () => {
         const startTime = parseFloat(startTimeInput.value);
         const endTime = parseFloat(endTimeInput.value);
+        const fadeOut = parseFloat(fadeOutInput.value);
 
         if (audioBlob && startTime < endTime) {
             const formData = new FormData();
             formData.append('file', audioBlob);
             formData.append('start_time', startTime);
             formData.append('end_time', endTime);
+            formData.append('fade_out', fadeOut);
             
             for (let [key, value] of formData.entries()) {
                 console.log(key, value);  

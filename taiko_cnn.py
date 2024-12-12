@@ -25,6 +25,11 @@ def detection(don_inference, ka_inference, song, density, delta):
     # Pick the peaks and classify between "Don" and "Ka" based on the probability
     don_timestamp = (peak_pick(x = don_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
     ka_timestamp = (peak_pick(x = ka_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
+    
+    # Prevent index out of bound
+    don_timestamp = don_timestamp[np.where(don_timestamp<=len(don_inference))]
+    ka_timestamp = ka_timestamp[np.where(ka_timestamp<=len(ka_inference))]
+
     song.don_timestamp = don_timestamp[np.where(don_inference[don_timestamp] > ka_inference[don_timestamp])]
     song.timestamp = song.don_timestamp*512/song.samplerate
     song.ka_timestamp = ka_timestamp[np.where(ka_inference[ka_timestamp] > don_inference[ka_timestamp])]
@@ -70,19 +75,23 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
         time = combined_timestamp[0][0]          
         count = 0
 
+        consecutive = 0
         # Iterate until all notes are placed in the .tja file
         while(i < len(combined_timestamp)):
-            if time >= combined_timestamp[i][0]:
+            if consecutive != 5 and time >= combined_timestamp[i][0]:
                 f.write(combined_timestamp[i][1])
                 i += 1
+                consecutive += 1
             else:
                 # Apply grace rule for placement 
                 # Avoid delay caused by floating point rounding error
-                if abs(time - combined_timestamp[i][0]) < interval * 0.1:
+                if consecutive != 5 and abs(time - combined_timestamp[i][0]) < interval * 0.1:
                     f.write(combined_timestamp[i][1])
                     i += 1
+                    consecutive += 1
                 else:    
                     f.write('0')
+                    consecutive = 0
             count += 1
             
             # Number of note per row is detemined by the minimum note unit

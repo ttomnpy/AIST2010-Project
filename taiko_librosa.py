@@ -197,6 +197,9 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         current_time = first_entry_time
         chart_string = ""
         
+        # Count the number of consecutive notes
+        notes_count = 0
+
         # Iterate until all notes are placed in the .tja file
         for entry in filtered_chart:
             while current_time < entry['time']:
@@ -205,8 +208,13 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
                 if abs(current_time - entry['time']) < min_note_interval * 0.1:
                     break
                 chart_string += "0"  # Rest
+                notes_count = 0
                 current_time += min_note_interval
-            chart_string += entry['note']  # Add note
+            if (notes_count == 5):
+                chart_string += "0"
+            else:
+                chart_string += entry['note']  # Add note
+            notes_count += 1
             current_time += min_note_interval
 
         while current_time < ending:

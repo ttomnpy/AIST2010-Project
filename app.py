@@ -21,8 +21,11 @@ def index():
 def trim_audio():
     # Obtain the user input data from the webpage
     file = request.files['file']
+    
+    # Convert seconds to milliseconds
     start_time = float(request.form['start_time']) * 1000 
-    end_time = float(request.form['end_time']) * 1000 # in ms
+    end_time = float(request.form['end_time']) * 1000
+    fade_out_duration = int(float(request.form['fade_out']) * 1000)
 
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -32,6 +35,7 @@ def trim_audio():
         # Trim the audio and save the trimmed audio in .ogg format
         audio = AudioSegment.from_file(file)
         trimmed_audio = audio[start_time:end_time]
+        trimmed_audio = trimmed_audio.fade_out(fade_out_duration)
         original_file_name = os.path.splitext(file.filename)[0]
         trimmed_file_name = f"{original_file_name}_trimmed.ogg"
         trimmed_file_path = os.path.join(GENERATED_FILES_FOLDER, trimmed_file_name)
@@ -85,7 +89,7 @@ def upload_audio():
 def process():
     # Obtain the user input data from the webpage
     song_name = request.form['sname']
-    difficulty = int(request.form['difficulty'])
+    difficulty = float(request.form['difficulty'])
     notes = request.form['notes']
     bpm = float(request.form['bpm'])
     file_name = request.form['file_name']

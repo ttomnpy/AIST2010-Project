@@ -1,7 +1,7 @@
 # A Taiko-no-Tatsujin Chart Generator
 
 ## Description
-This project generate Taiko-no-Tatsujin chart file .tja from a given song file, making use of musical onset detection.
+This project generate Taiko-no-Tatsujin chart file .tja from a given song file (.ogg), making use of musical onset detection.
 
 ## Requirements
 - python3
@@ -39,7 +39,7 @@ Fill in the following information for the chart:
 - **Song name**: displayed name of the song
 - **Difficulty**: set the average hits/sec 
 - **Minimum note unit**: distance between consecutative notes
-- **Detected BPM**: beat per minute (BPM) of the song
+- **Detected BPM**: beats per minute (BPM) of the song
 
 Click the _Generate Chart_ button to start chart generation (May take a while)
 

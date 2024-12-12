@@ -234,7 +234,7 @@ def multi_fft_and_melscale(songs, nhop=512, nffts=[1024, 2048, 4096], mel_nband=
         songs[i].feats = fft_and_melscale(songs[i], nhop, nffts, mel_nband, mel_freqlo, mel_freqhi)
 
 
-'''def milden(data):
+def milden(data):
     """put smaller value(0.25) to plus minus 1 frame."""
     
     for i in range(data.shape[0]):
@@ -251,7 +251,7 @@ def multi_fft_and_melscale(songs, nhop=512, nffts=[1024, 2048, 4096], mel_nband=
             if i < data.shape[0] - 1:
                 data[i+1] = 0.1
     
-    return data'''
+    return data
 
 
 def smooth(x, window_len=11, window='hanning'):
@@ -278,112 +278,3 @@ def smooth(x, window_len=11, window='hanning'):
     y = np.convolve(w/w.sum(), s, mode='valid')
     
     return y
-
-"""
-def music_for_listening(serv, synthesize=True, difficulty=0):
-
-    song = Audio(glob(serv+"/*.ogg")[0])
-    if synthesize:
-        song.import_tja(glob(serv+"/*.tja")[-1], difficulty=difficulty)
-        song.synthesize()
-    # plt.plot(song.data[1000:1512, 0])
-    # plt.show()
-    song.save("./data/saved_music.wav")
-
-
-def music_for_validation(serv, deletemusic=True, verbose=False, difficulty=1):
-
-    song = Audio(glob(serv+"/*.ogg")[0], stereo=False)
-    song.import_tja(glob(serv+"/*.tja")[-1], difficulty=difficulty)
-    song.feats = fft_and_melscale(song, nhop=512, nffts=[1024, 2048, 4096], mel_nband=80, mel_freqlo=27.5, mel_freqhi=16000.0, include_zero_cross=False)
-
-    if deletemusic:
-        song.data = None
-    with open('./data/pickles/val_data.pickle', mode='wb') as f:
-        pickle.dump(song, f)
-
-
-def music_for_train(serv, deletemusic=True, verbose=False, difficulty=0, diff=False, nhop=512, nffts=[1024, 2048, 4096], mel_nband=80, mel_freqlo=27.5, mel_freqhi=16000.0, include_zero_cross=False):
-    
-    songplaces = glob(serv)
-    songs = []
-    
-    for songplace in songplaces:
-        
-        if verbose:
-            print(songplace)
-        
-        song = Audio(glob(songplace+"/*.ogg")[0])
-        song.import_tja(glob(songplace+"/*.tja")[-1], difficulty=difficulty, diff=True)
-        song.data = (song.data[:, 0]+song.data[:, 1])/2
-        songs.append(song)
-
-    multi_fft_and_melscale(songs, nhop, nffts, mel_nband, mel_freqlo, mel_freqhi, include_zero_cross=include_zero_cross)
-    
-    if deletemusic:
-        for song in songs:
-            song.data = None
-    
-    with open('./data/pickles/train_data.pickle', mode='wb') as f:
-        pickle.dump(songs, f)
-
-def music_for_train_reduced(serv, deletemusic=True, verbose=False, difficulty=0, diff=False, nhop=512, nffts=[1024, 2048, 4096], mel_nband=80, mel_freqlo=27.5, mel_freqhi=16000.0, include_zero_cross=False):
-    
-    songplaces = glob(serv)
-    songs = []
-    
-    for songplace in songplaces:
-        
-        if verbose:
-            print(songplace)
-        
-        song = Audio(glob(songplace+"/*.ogg")[0])
-        song.import_tja(glob(songplace+"/*.tja")[-1], difficulty=difficulty, diff=True)
-        song.data = (song.data[:, 0]+song.data[:, 1])/2
-        songs.append(song)
-
-    multi_fft_and_melscale(songs, nhop, nffts, mel_nband, mel_freqlo, mel_freqhi, include_zero_cross=include_zero_cross)
-    
-    if deletemusic:
-        for song in songs:
-            song.data = None
-    
-    with open('./data/pickles/train_reduced.pickle', mode='wb') as f:
-        pickle.dump(songs, f)
-
-
-def music_for_test(serv, deletemusic=True, verbose=False):
-
-    song = Audio(glob(serv+"/*.ogg")[0], stereo=False)
-    # song.import_tja(glob(serv+"/*.tja")[-1])
-    song.feats = fft_and_melscale(song, include_zero_cross=False)
-    with open('./data/pickles/test_data.pickle', mode='wb') as f:
-        pickle.dump(song, f)
-
-
-if __name__ == "__main__":
-
-    if sys.argv[1] == 'train':
-        print("preparing all train data processing...")
-        serv = "./data/train/*"
-        music_for_train(serv, verbose=True, difficulty=0, diff=True)
-        print("all train data processing done!")    
-
-    if sys.argv[1] == 'test':
-        print("test data proccesing...")
-        serv = "./data/test/"
-        music_for_test(serv)
-        print("test data processing done!")
-
-    if sys.argv[1] == 'val':
-        print("validation data processing...")
-        serv = "./data/validation"
-        music_for_validation(serv)
-        print("done!")
-
-    if sys.argv[1] == 'reduced':
-        serv = './data/train_reduced/*'
-        music_for_train_reduced(serv, verbose=True, difficulty=0, diff=True)
-        
-
-"""

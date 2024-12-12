@@ -9,20 +9,20 @@ import librosa
 
 """
 Idea taken from a open-source project.
-We modified this file to fit our goal of chart generation.
+We modified it to fit our goal of chart generation.
 """
 
 def round_off(n):
+    # Round off function (round to nearest integer, not nearest even)
     return int(n + 0.5) if n > 0 else int(n - 0.5)
 
 def detection(don_inference, ka_inference, song, density, delta):
-    """detects notes disnotesiresultg don and ka"""
     
+    # Smoothing the array with Hamming window of 5 frames
     don_inference = smooth(don_inference, 5)
     ka_inference = smooth(ka_inference, 5)
     
-    #delta = 0.03
-
+    # Pick the peaks and classify between "Don" and "Ka" based on the probability
     don_timestamp = (peak_pick(x = don_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
     ka_timestamp = (peak_pick(x = ka_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
     song.don_timestamp = don_timestamp[np.where(don_inference[don_timestamp] > ka_inference[don_timestamp])]
@@ -36,58 +36,63 @@ def detection(don_inference, ka_inference, song, density, delta):
 
 def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name, bpm = 240, notes_unit="16th", ):
 
-
+    # Calculate the minimum note interval from BPM
     note_unit_map = {"8th": 1/2, "16th": 1/4, "32th": 1/8, "64th": 1/16}
     interval = 60 / bpm * note_unit_map.get(notes_unit, 1/4) * 1000
     note_per_row = int(notes_unit[:-2])
     threshold = 0.5
     
+    # Filter to align the detected notes to the minimum note grid
     def filter(timestamps):
-        #starting_note = round_off((timestamps[0][0]) / interval) * interval
         starting_note = timestamps[0][0]
-        #starting_note = 0
-        print("starting", starting_note)
         snapped = []
         for timestamp, note in timestamps:
             aligned_timestamp = round_off((timestamp - starting_note) / interval) * interval
-
             deviation = abs((timestamp - starting_note) - aligned_timestamp)
-
-            #print(timestamp, aligned_timestamp , deviation, threshold * interval)
             if deviation <= threshold * interval:
                 snapped.append((aligned_timestamp+starting_note, note))
         
         return snapped
     
-
+    # Convert the notes sample to timestamps in ms
     don_with_labels = [(timestamp*512/song.samplerate*1000, '1') for timestamp in don_timestamp]
     ka_with_labels = [(timestamp*512/song.samplerate*1000, '2') for timestamp in ka_timestamp]
 
+    # Combine the two kind of notes together
     combined_timestamp = sorted(don_with_labels + ka_with_labels, key=lambda x: x[0])
     combined_timestamp = filter(combined_timestamp)
 
     
     with open(filename, "w") as f:
+        # Set the offset as the appear time of first note
         f.write(f'TITLE: {songname}\nSUBTITLE: --\nBPM: {bpm}\nWAVE:{file_name}\nOFFSET:{-combined_timestamp[0][0]/1000}\n#START\n')
         i = 0
         time = combined_timestamp[0][0]          
         count = 0
+
+        # Iterate until all notes are placed in the .tja file
         while(i < len(combined_timestamp)):
             if time >= combined_timestamp[i][0]:
                 f.write(combined_timestamp[i][1])
                 i += 1
             else:
+                # Apply grace rule for placement 
+                # Avoid delay caused by floating point rounding error
                 if abs(time - combined_timestamp[i][0]) < interval * 0.1:
                     f.write(combined_timestamp[i][1])
                     i += 1
                 else:    
                     f.write('0')
             count += 1
+            
+            # Number of note per row is detemined by the minimum note unit
+            # (16 notes per row for 16-th note)
             if count % note_per_row == 0:
                 f.write(',\n')
             time += interval
         f.write('#END')
     
+    # Calculate the note density for difficulty adjustment
     timestamp_dict = [{"time": timestamp, "note": note} for timestamp, note in combined_timestamp]
     total_length = len(timestamp_dict)
     duration = song.data.shape[0] / song.samplerate
@@ -98,7 +103,7 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
 def process_song(songpath):
     song = Audio(songpath, stereo=False)
     song.feats = fft_and_melscale(song, include_zero_cross=False)
-
+    # Perform FFT and obtain the frequency domain features
     return song
 
 def generate_inference(song, density, delta):
@@ -124,7 +129,8 @@ def generate_inference(song, density, delta):
 
     ka_inference = net.infer(song.feats, device, minibatch=4192)
     ka_inference = np.reshape(ka_inference, (-1))
-
+    
+    # Obtain the probablity for each frame to be a Don or Ka note
     song = detection(don_inference, ka_inference, song, density, delta)
 
     return song

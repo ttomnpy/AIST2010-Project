@@ -15,7 +15,7 @@ from numba import jit, prange
 from sklearn.preprocessing import normalize
 
 """
-This code file is downloaded from a open-source project.
+This code file is directly taken from the open-source project.
 """
 
 class Audio:

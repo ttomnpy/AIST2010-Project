@@ -7,12 +7,7 @@ from tqdm import tqdm
 from music_processor import *
 
 """
-This code file is downloaded from a open-source project.
-
-On the paper,
-Starting from a stack of three spectrogram excerpts,
-convolution and max-pooling in turns compute a set of 20 feature maps 
-classified with a fully-connected network.
+This code file is directly taken from the open-source project.
 """
 
 class convNet(nn.Module):

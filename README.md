@@ -10,6 +10,7 @@ This project generate Taiko-no-Tatsujin chart file .tja from a given song file, 
 - soundfile
 - demucs
 - flask
+- pydub
 - pytorch (for CNN method)
 - tqdm (for CNN method)
 

@@ -8,43 +8,28 @@ import os
 import librosa
 
 """
-This code file is downloaded from a open-source project.
+Idea taken from a open-source project.
 We modified this file to fit our goal of chart generation.
 """
 
 def round_off(n):
     return int(n + 0.5) if n > 0 else int(n - 0.5)
 
-def detection(don_inference, ka_inference, song, density):
+def detection(don_inference, ka_inference, song, density, delta):
     """detects notes disnotesiresultg don and ka"""
     
     don_inference = smooth(don_inference, 5)
     ka_inference = smooth(ka_inference, 5)
-    i = 0
-    delta = 0.03
-    while i < 100:
-        i += 1
-        don_timestamp = (peak_pick(x = don_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=5)+7)
-        ka_timestamp = (peak_pick(x = ka_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=5)+7)
+    
+    #delta = 0.03
 
-        song.don_timestamp = don_timestamp[np.where(don_inference[don_timestamp] > ka_inference[don_timestamp])]
-        song.timestamp = song.don_timestamp*512/song.samplerate
-        don_num = len(song.timestamp)
-        song.ka_timestamp = ka_timestamp[np.where(ka_inference[ka_timestamp] > don_inference[ka_timestamp])]
-        song.timestamp=song.ka_timestamp*512/song.samplerate
-        ka_num = len(song.timestamp)
-        
-        total_length = don_num + ka_num
-        duration = song.data.shape[0] / song.samplerate
-        average_density = total_length / duration
-        print(f"density: {average_density}, delta = {delta}")
-        if (round_off(average_density) <= density):
-            break
-        else:
-            delta += 0.01
-            
-    if i == 100:
-        raise Exception("Error when calculating density, time out error")
+    don_timestamp = (peak_pick(x = don_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
+    ka_timestamp = (peak_pick(x = ka_inference, pre_max=2, post_max=2, pre_avg=2, post_avg=2, delta= delta, wait=2)+7)
+    song.don_timestamp = don_timestamp[np.where(don_inference[don_timestamp] > ka_inference[don_timestamp])]
+    song.timestamp = song.don_timestamp*512/song.samplerate
+    song.ka_timestamp = ka_timestamp[np.where(ka_inference[ka_timestamp] > don_inference[ka_timestamp])]
+    song.timestamp=song.ka_timestamp*512/song.samplerate
+
 
     return song
 
@@ -55,15 +40,20 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
     note_unit_map = {"8th": 1/2, "16th": 1/4, "32th": 1/8, "64th": 1/16}
     interval = 60 / bpm * note_unit_map.get(notes_unit, 1/4) * 1000
     note_per_row = int(notes_unit[:-2])
-    threshold = 0.25
+    threshold = 0.5
     
     def filter(timestamps):
-        starting_note = round_off((timestamps[0][0]) / interval) * interval
+        #starting_note = round_off((timestamps[0][0]) / interval) * interval
+        starting_note = timestamps[0][0]
+        #starting_note = 0
+        print("starting", starting_note)
         snapped = []
         for timestamp, note in timestamps:
             aligned_timestamp = round_off((timestamp - starting_note) / interval) * interval
+
             deviation = abs((timestamp - starting_note) - aligned_timestamp)
-            #print(deviation, threshold * interval)
+
+            #print(timestamp, aligned_timestamp , deviation, threshold * interval)
             if deviation <= threshold * interval:
                 snapped.append((aligned_timestamp+starting_note, note))
         
@@ -87,7 +77,11 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
                 f.write(combined_timestamp[i][1])
                 i += 1
             else:
-                f.write('0')
+                if abs(time - combined_timestamp[i][0]) < interval * 0.1:
+                    f.write(combined_timestamp[i][1])
+                    i += 1
+                else:    
+                    f.write('0')
             count += 1
             if count % note_per_row == 0:
                 f.write(',\n')
@@ -95,8 +89,11 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
         f.write('#END')
     
     timestamp_dict = [{"time": timestamp, "note": note} for timestamp, note in combined_timestamp]
-    
-    return timestamp_dict
+    total_length = len(timestamp_dict)
+    duration = song.data.shape[0] / song.samplerate
+    average_density = total_length / duration
+    print(f"density: {average_density}, total: {total_length}, dur: {duration}")
+    return timestamp_dict, average_density
 
 def process_song(songpath):
     song = Audio(songpath, stereo=False)
@@ -104,7 +101,7 @@ def process_song(songpath):
 
     return song
 
-def generate_inference(song, density):
+def generate_inference(song, density, delta):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     net = convNet()
     net = net.to(device)
@@ -128,7 +125,7 @@ def generate_inference(song, density):
     ka_inference = net.infer(song.feats, device, minibatch=4192)
     ka_inference = np.reshape(ka_inference, (-1))
 
-    song = detection(don_inference, ka_inference, song, density)
+    song = detection(don_inference, ka_inference, song, density, delta)
 
     return song
 

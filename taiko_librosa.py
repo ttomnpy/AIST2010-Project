@@ -38,6 +38,7 @@ def taiko_chart_generator(file_path, max_hits_per_sec):
     # Detect tempo (BPM) and onset frames
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
     print("Detected BPM", tempo.item())
+
     
     bpm = tempo.item()
 
@@ -95,8 +96,7 @@ def classify_don_ka(y, sr, onsets):
         onset_samples = librosa.time_to_samples(onset, sr=sr)
         onset_window = y[onset_samples - int(0.1 * sr):onset_samples + int(0.1 * sr)]
 
-        D = librosa.stft(onset_window)
-        magnitude, _ = librosa.magphase(D)
+        magnitude = np.abs(librosa.stft(onset_window))
         spectral_centroid = librosa.feature.spectral_centroid(S=magnitude).mean()
         spectral_centroids.append(spectral_centroid)
 
@@ -224,22 +224,23 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
             if not chart:
                 return []
             
-            #starting_time = chart[0]["time"]
-            starting_time = 0
+            starting_time = chart[0]["time"]
+            #starting_time = 0
+            #starting_time = round_off((chart[0]["time"]) / min_note_interval) * min_note_interval
             snapped_chart = []
             for entry in chart:
                 timestamp, note = entry["time"], entry["note"]
                 
-                
                 aligned_time = round_off((timestamp-starting_time) / min_note_interval) * min_note_interval
                 deviation = abs((timestamp - starting_time) - aligned_time)
-                print(timestamp, aligned_time+starting_time, deviation)
+                #print(timestamp, aligned_time+starting_time, deviation)
                 if deviation <= threshold * min_note_interval:
                     snapped_chart.append({"time": aligned_time + starting_time, "note": note})
             return snapped_chart
 
         filtered_chart = filter_chart(taiko_chart)
 
+        #filtered_chart = taiko_chart
         first_entry_time = filtered_chart[0]["time"]
 
         f.write(f"TITLE:{title}\n")
@@ -257,6 +258,8 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         # Generate note sequence
         for entry in filtered_chart:
             while current_time < entry['time']:
+                if abs(current_time - entry['time']) < min_note_interval * 0.1:
+                    break
                 chart_string += "0"  # Rest
                 current_time += min_note_interval
             chart_string += entry['note']  # Add note

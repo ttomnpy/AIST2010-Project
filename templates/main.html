@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Taiko no Tatsujin Chart Generator</title>
+<title>Taiko-no-Tatsujin Chart Generator</title>
+<link rel="icon" href="static/icon.png">
+
 <style>
     body {
         position: relative;
         margin: 0;
         height: 100vh;
-        background-color: rgba(238, 238, 238); /* Background color */
+        background-color: rgba(238, 238, 238);
         padding: 25px 0 100px 0;
         overflow-y: auto;
     }
@@ -134,8 +136,8 @@
 
     .empty-box { 
             width: 200px; 
-            height: 100px; /* Height of the box */ 
-            background-color: transparent; /* Background color */ 
+            height: 100px;
+            background-color: transparent;
     } 
 
     #waveform {
@@ -167,36 +169,41 @@
         <p>Drag and drop your files here, or click the button to select files</p>
         <button id="browseButton">Browse File</button>
         <input type="file" id="audioFile" multiple style="display: none;">
-         <!-- Audio playback area -->
         <div id="audioPlayback" style="display: none;">
             <h3>Uploaded Audio</h3>
             <audio id="audioPlayer" controls>
                 Your browser does not support the audio element.
-        </audio>
+            </audio>
+        </div>
     </div>
-    </div>
-    <div class="button-container">
-        <button type="button" onclick="uploadAudio()">Upload and Detect BPM</button>
-    </div>
+    <form id="trimForm" style="display: none;">
+        <h3>Trim Your Audio</h3>
+        <label for="startTime">Start Time (seconds):</label>
+        <input type="number" id="startTime" name="startTime" value="0" min="0"><br>
+             
+        <label for="endTime">End Time (seconds):</label>
+        <input type="number" id="endTime" name="endTime" value="10" min="0"><br>
+            
+        <button type="button" id="trim">Trim Audio</button>
+        <h3>Trimmed Audio</h3>
+        <audio id="trimmedAudio" controls></audio><br>
+        <button type="button" id="detect" style="display: none;">Upload and Detect BPM</button>
+    </form>
 
 
-    <!-- Form to fill in song details after BPM detection -->
+
     <form id="songForm" onsubmit="submitForm(event)" method="post" style="display: none;">
 
         <h3><strong class= "custom_font">Please fill in the song's information</strong></h3>
 
-        <!-- Hidden field for file path -->
         <input type="hidden" id="file_path" name="file_name">
 
-        <!-- Song Name -->
         <label for="sname">Song name:</label><br>
         <input type="text" id="sname" name="sname" required><br><br>
         
-        <!-- Difficulty -->
         <label for="difficulty">Difficulty (Max Average Hits/sec):</label><br>
         <input type="number" value="5" id="difficulty" name="difficulty" required><label> hits/sec</label><br><br>
         
-        <!-- Notes -->
         <label for="notes">Minimum Note Unit:</label><br>
         <input type="radio" id="8notes" name="notes" value="8th" required>
         <label for="8notes">8th notes</label><br>
@@ -205,33 +212,98 @@
         <input type="radio" id="32notes" name="notes" value="32th" required>
         <label for="32notes">32nd notes</label><br><br>
 
-        <!-- BPM Displayed from Detection -->
         <label for="bpm">Detected BPM:</label><br>
         <input type="text" id="bpm" name="bpm" required><br><br>
 
-        <!-- Selection between CNN method and Librosa -->
         <label for="method">Generation Method:</label><br>
         <input type="radio" id="cnn" name="method" value="cnn" required>
         <label for="cnn">CNN Approach</label><br>
         <input type="radio" id="librosa" name="method" value="librosa" required>
         <label for="librosa">Librosa Approach</label><br>
 
-        <!-- Submit button -->
         <input type="submit" value="Generate Chart">
     </form>
-
     <script>
+    
     const dropArea = document.getElementById('dropArea');
     const audioFileInput = document.getElementById('audioFile');
     const browseButton = document.getElementById('browseButton');
     const audioPlayer = document.getElementById('audioPlayer');
     const audioPlaybackArea = document.getElementById('audioPlayback');
-
+    const trimForm = document.getElementById('trimForm');
+    const trimmedAudio = document.getElementById('trimmedAudio');
+    const trimButton = document.getElementById('trim');
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+    const detectButton = document.getElementById('detect');
+    
     audioFileInput.setAttribute('multiple', false);
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, preventDefaults, false);
     });
+
+    let trimmedBuffer;
+    let audioBlob;
+
+    audioFileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            audioPlayer.src = url;
+            audioBlob = file;
+        }
+    });
+
+    async function getFileFromUrl(url, name, defaultType = 'audio/ogg'){
+        const response = await fetch(url);
+        const data = await response.blob();
+        return new File([data], name, {
+            type: data.type || defaultType,
+        });
+        }
+
+    trimButton.addEventListener('click', async () => {
+        const startTime = parseFloat(startTimeInput.value);
+        const endTime = parseFloat(endTimeInput.value);
+
+        if (audioBlob && startTime < endTime) {
+            const formData = new FormData();
+            formData.append('file', audioBlob);
+            formData.append('start_time', startTime);
+            formData.append('end_time', endTime);
+            
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);  
+            }
+
+            try {
+                const response = await fetch('/trim', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const trimmedAudioUrl = data.trimmed_file_path;
+                    trimmedAudio.src = trimmedAudioUrl;
+                    
+                    const trimmedFile = await getFileFromUrl(trimmedAudioUrl, trimmedAudioUrl.split('\\').pop());
+    
+                    detectButton.style.display = 'block';
+                    detectButton.onclick = () => uploadAudio(trimmedFile);
+                } else {
+                    alert('Failed to trim audio.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while trimming the audio.');
+            }
+        } else {
+            alert('Please select a valid audio file and ensure start time is less than end time.');
+        }
+    });
+
 
     function preventDefaults(e) {
         e.preventDefault();
@@ -270,7 +342,7 @@
             const fileURL = URL.createObjectURL(file);
             audioPlayer.src = fileURL;
             audioPlaybackArea.style.display = 'block';
-
+            trimForm.style.display = 'block';
             dropArea.style.height = '350px';  
         }
     }
@@ -283,11 +355,9 @@
         handleFiles(audioFileInput.files);
     });
 
-    async function uploadAudio() {
+    async function uploadAudio(wavBlob) {
         const formData = new FormData();
-        const fileInput = document.getElementById('audioFile');
-        formData.append('file', fileInput.files[0]);
-
+        formData.append('file', wavBlob);
         const response = await fetch('/upload', {
             method: 'POST',
             body: formData
@@ -315,16 +385,16 @@
             });
 
             if (response.ok) {
-                const data = await response.json(); // Get the response data
+                const data = await response.json();
                 
-                // Create a link for auto download of the TJA file
+                
                 const tjaFileUrl = data.tja_file_url;
                 const link = document.createElement('a');
                 link.href = tjaFileUrl;
                 link.download = `${formData.get('sname')}.tja`;
                 link.click();
 
-                // Set up synthesized audio player
+                
                 const audioPlayer = document.getElementById('synthesizedAudioPlayer');
                 audioPlayer.src = data.synthesized_audio_url;
 
@@ -340,10 +410,8 @@
 
     </script>
 
-    <!-- Section to display the synthesized audio and download button -->
     <div id="synthesizedAudioSection" style="display: none; text-align: center;">
         <h3>Your synthesized audio is ready!</h3>
-        <!-- Audio playback area -->
         <audio id="synthesizedAudioPlayer" controls>
             Your browser does not support the audio element.
         </audio>

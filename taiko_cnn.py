@@ -45,16 +45,22 @@ def create_tja(filename, song, songname, don_timestamp, ka_timestamp, file_name,
     note_unit_map = {"8th": 1/2, "16th": 1/4, "32th": 1/8, "64th": 1/16}
     interval = 60 / bpm * note_unit_map.get(notes_unit, 1/4) * 1000
     note_per_row = int(notes_unit[:-2])
-    threshold = 0.5
+    if (notes_unit != '8th'):
+            threshold = 0.5
+    else:
+            threshold = 0.25
     
     # Filter to align the detected notes to the minimum note grid
     def filter(timestamps):
         starting_note = timestamps[0][0]
         snapped = []
+        last_note = -1
         for timestamp, note in timestamps:
             aligned_timestamp = round_off((timestamp - starting_note) / interval) * interval
             deviation = abs((timestamp - starting_note) - aligned_timestamp)
-            if deviation <= threshold * interval:
+            print(aligned_timestamp, timestamp)
+            if round_off(aligned_timestamp) != round_off(last_note) and deviation <= threshold * interval:
+                last_note = aligned_timestamp
                 snapped.append((aligned_timestamp+starting_note, note))
         
         return snapped

@@ -23,10 +23,13 @@ def trim_audio():
     file = request.files['file']
     
     # Convert seconds to milliseconds
+    print("starttime", request.form['start_time'])
+    print("endtime", request.form['end_time'])
+    print("fadeout", request.form['fade_out'])
     start_time = float(request.form['start_time']) * 1000 
     end_time = float(request.form['end_time']) * 1000
     fade_out_duration = int(float(request.form['fade_out']) * 1000)
-
+    
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
 
@@ -35,8 +38,10 @@ def trim_audio():
         # Trim the audio and save the trimmed audio in .ogg format
         audio = AudioSegment.from_file(file)
         trimmed_audio = audio[start_time:end_time]
-        trimmed_audio = trimmed_audio.fade_out(fade_out_duration)
+        if (fade_out_duration != 0):
+            trimmed_audio = trimmed_audio.fade_out(fade_out_duration)
         original_file_name = os.path.splitext(file.filename)[0]
+        
         trimmed_file_name = f"{original_file_name}_trimmed.ogg"
         trimmed_file_path = os.path.join(GENERATED_FILES_FOLDER, trimmed_file_name)
         trimmed_audio.export(trimmed_file_path, format="ogg")
@@ -46,6 +51,7 @@ def trim_audio():
         return jsonify({'trimmed_file_path': trimmed_file_path})
 
     except Exception as e:
+        print(e)
         return jsonify({'error': 'Failed to trim audio', 'message': str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
@@ -65,7 +71,7 @@ def upload_audio():
         y, sr = librosa.load(file_bytes, mono=True)
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
 
-        # Debug messages: Trying to understand the octave error
+        # Trying to understand the octave error
         first_beat_time, last_beat_time = librosa.frames_to_time((beat_frames[0], beat_frames[-1]), sr=sr)
         bpm = 60 / ((last_beat_time - first_beat_time) / (len(beat_frames) - 1))
         print("Calculated BPM", bpm)

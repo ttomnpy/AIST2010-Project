@@ -161,8 +161,10 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
         
         if not taiko_chart:
             raise ValueError("The taiko_chart is empty.")
-        
-        threshold = 0.5
+        if (min_note_interval != '8th'):
+            threshold = 0.5
+        else:
+            threshold = 0.25
         filtered_chart = []
 
         # Filter to align the detected notes to the minimum note grid
@@ -172,12 +174,16 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
             
             starting_time = chart[0]["time"]
             snapped_chart = []
+            last_note = -1
             for entry in chart:
                 timestamp, note = entry["time"], entry["note"]
                 
                 aligned_time = round_off((timestamp-starting_time) / min_note_interval) * min_note_interval
                 deviation = abs((timestamp - starting_time) - aligned_time)
-                if deviation <= threshold * min_note_interval:
+                #print(aligned_time, timestamp)
+                # Remove duplicated notes on same timestamp and notes deviate a lot
+                if aligned_time != last_note and deviation <= threshold * min_note_interval:
+                    last_note = aligned_time
                     snapped_chart.append({"time": aligned_time + starting_time, "note": note})
             return snapped_chart
 
@@ -210,11 +216,13 @@ def write_tja_file(output_file, taiko_chart, bpm, ending, song , title="Generate
                 chart_string += "0"  # Rest
                 notes_count = 0
                 current_time += min_note_interval
+            
             if (notes_count == 5):
                 chart_string += "0"
+                notes_count = 0
             else:
                 chart_string += entry['note']  # Add note
-            notes_count += 1
+                notes_count += 1
             current_time += min_note_interval
 
         while current_time < ending:
